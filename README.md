@@ -3,7 +3,7 @@
 ## Statistics of clothing dataset
 
 ![age](./Figs/age_statistics.png "Distribution of users' age")
-<!--<p align="center">Distribution of users' age</p>-->
+<p align="center">Distribution of users' age</p>
 
 ![fit](./Figs/fit_statistics.png "Distribution of fit")
 <!--<p align="center">Distribution of fit</p>-->
