@@ -1,30 +1,30 @@
 # PA2
 
-Statistics of clothing dataset.
+## Statistics of clothing dataset
 
 ![age](./Figs/age_statistics.png "Distribution of users' age")
-<center>Distribution of users' age</center>
+<!--<p align="center">Distribution of users' age</p>-->
 
 ![fit](./Figs/fit_statistics.png "Distribution of fit")
-<center>Distribution of fit</center>
+<!--<p align="center">Distribution of fit</p>-->
 
 ![rent purpose](./Figs/rented_for_statistics.png "Distribution of rent purpose")
-<center>Distribution of rent purpose</center>
+<!--<p align="center">Distribution of rent purpose</p>-->
 
 ![body type](./Figs/body_type_statistics.png "Distribution of body type")
-<center>Distribution of body type</center>
+<!--<p align="center">Distribution of body type</p>-->
 
 ![height](./Figs/height_statistics.png "Distribution of height")
-<center>Distribution of height</center>
+<!--<p align="center">Distribution of heigh</p>-->
 
 ![size](./Figs/size_statistics.png "Distribution of size")
-<center>Distribution of size</center>
+<!--<p align="center">Distribution of size</p>-->
 
 ![bust_size](./Figs/bust_size_statistics.png "Distribution of bust_size")
-<center>Distribution of bust size</center>
+<!--<p align="center">Distribution of bust size</p>-->
 
 ![rating](./Figs/rating_statistics.png "Distribution of rating")
-<center>Distribution of rating</center>
+<!--<p align="center">Distribution of rating</p>-->
 
 ![weight](./Figs/weight_statistics.png "Distribution of weight")
-<center>Distribution of weight</center>
+<!--<p align="center">Distribution of weight</p>-->
