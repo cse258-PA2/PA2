@@ -6,6 +6,9 @@ import matplotlib.ticker as ticker
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
+import numpy
+from sklearn import linear_model
+
 
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
 body_type_convertion_mod='onehot'  #'onehot' or 'integer'
@@ -43,6 +46,40 @@ def plot_dataset_statistics(dataset):
         plt.ylabel("Number of samples")
         # plt.title(head+" statistics")
         plt.savefig(figs_path+head+"_statistics.png",dpi=300)
+
+## use to record features used in linear regression
+def feature(datum):
+    feat=[1,int(datum['whetherFit']),int(len(datum['review_text'])),]
+    return feat 
+
+
+       
+## predict rating using linear regression
+def predictRatingWithLinear(dataset):
+        y=[int(d['rating']) for d in dataset]
+        X=[feature(d) for d in dataset]
+        N3=len(X)
+        
+        X_train=X[:(N3//11)*10]
+        X_valid=X[(N3//11)*10:]
+        y_train=y[:(N3//11)*10]
+        y_valid=y[(N3//11)*10:]
+        
+        theta,residuals,rank,s=numpy.linalg.lstsq(X_train,y_train)
+        
+        #mse
+        predict=[]
+        rows=len(X_train)    
+        cols=len(X_train[0])
+        for i in range(rows):
+            row_result=theta[0]+theta[1]*X_train[i][1]
+            predict.append(row_result)
+            
+        differences=[(x-y)**2 for (x,y) in zip(predict,y_train)]
+        MSE=sum(differences)/len(differences)
+        print(str(MSE))
+        return MSE
+    
 
 def bust_size_convertion(bust_size):
     lower_size=int(bust_size[:2])
@@ -104,6 +141,10 @@ if __name__ == "__main__":
             data=json.loads(line)
             if data['rating']==None or len(data)!=15:  #If it doesn't have all attributes or rating is None, abort thus sample  
                 continue
+            if data['fit']=='fit':
+                data['whetherFit']=1
+            else:
+                data['whetherFit']=0                
             data['age']=int(data['age'])
             data['rating']=int(data['rating'])
             data['weight']=int(data['weight'][:-3])
@@ -122,9 +163,13 @@ if __name__ == "__main__":
 
     print('Read dataset complete')
 
-    #plot statistics of dataset
-    # plot_dataset_statistics(dataset)
+#-------------------------plot statistics of dataset-----------------------------
+    #plot_dataset_statistics(dataset)
 
+#-------------------------rating prediction--------------------------------------
+    a=predictRatingWithLinear(dataset)
+    
+#-------------------------fit prediction-----------------------------------------
     fit_predict(dataset)
 
 
