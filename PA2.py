@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
+body_type_convertion_mod='onehot'  #'onehot' or 'integer'
 
 #plot statistics of dataset
 def plot_dataset_statistics(dataset):
@@ -23,7 +24,7 @@ def plot_dataset_statistics(dataset):
     for data in dataset:
         for head in data:
             if head!='user_id' and head!='item_id' and head!='review_text' and head!='review_summary' and head!='review_date':
-                statistics_dic[head][data[head]]+=1        
+                statistics_dic[head][data[head]]+=1      
 
     for head in statistics_dic:
         fig, ax = plt.subplots(1, 1)
@@ -40,6 +41,18 @@ def plot_dataset_statistics(dataset):
         # plt.title(head+" statistics")
         plt.savefig(figs_path+head+"_statistics.png",dpi=300)
 
+def bust_size_convertion(bust_size):
+    lower_size=int(bust_size[:2])
+    cup_size=bust_size[2:]
+    cup_size_dic={'aa':1,'a':2,'b':3,'c':4,'d':5,'d+':5.5,'dd':6,'ddd/e':7,'f':9,'g':11,'h':13,'i':15,'j':17}
+    return lower_size+cup_size_dic[cup_size]
+
+def body_type_convertion(body_type):
+    if body_type_convertion_mod=='onehot':
+        dic={'apple':'1000000','athletic':'0100000','full bust':'0010000','hourglass':'0001000','pear':'0000100','petite':'0000010','straight & narrow':'0000001'}
+    else:
+        dic={'apple':1,'athletic':2,'full bust':3,'hourglass':4,'pear':5,'petite':6,'straight & narrow':7}
+    return dic[body_type]
 
 #Possible tasks: 1. predict whether fit  2. predict rating 3. whether A would rent B
 if __name__ == "__main__":
@@ -53,6 +66,11 @@ if __name__ == "__main__":
             data['age']=int(data['age'])
             data['rating']=int(data['rating'])
             data['weight']=int(data['weight'][:-3])
+            height_tmp=data['height'].strip('\"').split('\'')
+            data['height']=float(height_tmp[0])+0.1*float(height_tmp[1])
+            data['bust size']=bust_size_convertion(data['bust size'])
+            data['body type']=body_type_convertion(data['body type'])
+
             dataset.append(data)
 
     user_reviews=defaultdict(list)  #reviews of each user
@@ -63,6 +81,8 @@ if __name__ == "__main__":
         item_reviews['item_id'].append(data)
 
     #plot statistics of dataset
-    plot_dataset_statistics(dataset)
+    # plot_dataset_statistics(dataset)
+
+
 
 
