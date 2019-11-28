@@ -8,6 +8,7 @@ from sklearn import linear_model
 
 
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
+body_type_convertion_mod='onehot'  #'onehot' or 'integer'
 
 #plot statistics of dataset
 def plot_dataset_statistics(dataset):
@@ -26,7 +27,7 @@ def plot_dataset_statistics(dataset):
     for data in dataset:
         for head in data:
             if head!='user_id' and head!='item_id' and head!='review_text' and head!='review_summary' and head!='review_date':
-                statistics_dic[head][data[head]]+=1        
+                statistics_dic[head][data[head]]+=1      
 
     for head in statistics_dic:
         fig, ax = plt.subplots(1, 1)
@@ -65,18 +66,30 @@ def predictRatingWithLinear(dataset):
         
         #mse
         predict=[]
-        rows=len(X_valid)    
-        cols=len(X_valid[0])
+        rows=len(X_train)    
+        cols=len(X_train[0])
         for i in range(rows):
-            row_result=theta[0]+theta[1]*X_valid[i][1]
+            row_result=theta[0]+theta[1]*X_train[i][1]
             predict.append(row_result)
             
-        differences=[(x-y)**2 for (x,y) in zip(predict,y_valid)]
+        differences=[(x-y)**2 for (x,y) in zip(predict,y_train)]
         MSE=sum(differences)/len(differences)
         print(str(MSE))
         return MSE
     
 
+def bust_size_convertion(bust_size):
+    lower_size=int(bust_size[:2])
+    cup_size=bust_size[2:]
+    cup_size_dic={'aa':1,'a':2,'b':3,'c':4,'d':5,'d+':5.5,'dd':6,'ddd/e':7,'f':9,'g':11,'h':13,'i':15,'j':17}
+    return lower_size+cup_size_dic[cup_size]
+
+def body_type_convertion(body_type):
+    if body_type_convertion_mod=='onehot':
+        dic={'apple':'1000000','athletic':'0100000','full bust':'0010000','hourglass':'0001000','pear':'0000100','petite':'0000010','straight & narrow':'0000001'}
+    else:
+        dic={'apple':1,'athletic':2,'full bust':3,'hourglass':4,'pear':5,'petite':6,'straight & narrow':7}
+    return dic[body_type]
 
 #Possible tasks: 1. predict whether fit  2. predict rating 3. whether A would rent B
 if __name__ == "__main__":
@@ -94,6 +107,11 @@ if __name__ == "__main__":
             data['age']=int(data['age'])
             data['rating']=int(data['rating'])
             data['weight']=int(data['weight'][:-3])
+            height_tmp=data['height'].strip('\"').split('\'')
+            data['height']=float(height_tmp[0])+0.1*float(height_tmp[1])
+            data['bust size']=bust_size_convertion(data['bust size'])
+            data['body type']=body_type_convertion(data['body type'])
+
             dataset.append(data)
 
     user_reviews=defaultdict(list)  #reviews of each user
@@ -107,3 +125,7 @@ if __name__ == "__main__":
     #plot_dataset_statistics(dataset)
     a=predictRatingWithLinear(dataset)
     
+
+
+
+
