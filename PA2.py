@@ -46,7 +46,7 @@ def plot_dataset_statistics(dataset):
 
 ## use to record features used in linear regression
 def feature(datum):
-    feat=[1,int(datum['whetherFit']),int(len(datum['review_text'])),]
+    feat=[1,int(datum['whetherFit'])]
     return feat 
 
 
@@ -103,7 +103,11 @@ if __name__ == "__main__":
             if data['fit']=='fit':
                 data['whetherFit']=1
             else:
-                data['whetherFit']=0                
+                data['whetherFit']=0         
+            if 'perfect' in data['review_summary'] or 'glamourous' in data['review_summary'] or 'love' in data['review_summary'] or 'cute' in data['review_summary'] or 'compliments' in data['review_summary'] or 'confident' in data['review_summary'] or 'awesome' in data['review_summary'] or 'comfortable' in data['review_summary'] or 'fashion' in data['review_summary'] or 'trendy' in data['review_summary'] or 'great' in data['review_summary'] or 'best' in data['review_summary'] or 'gorgeous' in data['review_summary'] or 'beautiful' in data['review_summary'] or 'recommend' in data['review_summary'] or 'fit' in data['review_summary'] or 'fun' in data['review_summary']:
+                data['good_review']=1
+            else:
+                data['good_review']=0
             data['age']=int(data['age'])
             data['rating']=int(data['rating'])
             data['weight']=int(data['weight'][:-3])
