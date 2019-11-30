@@ -105,7 +105,15 @@ def classification_statics(preds,labels):
     print('\n-----------------------------------------')
     print(metrics.classification_report(labels,preds,digits=3))
 
-def fit_predict(dataset):
+def LR(features_train,features_valid,labels_train):
+    model=LogisticRegression(C=1000,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=200)
+    model.fit(features_train,labels_train)
+    preds_train=model.predict(features_train)
+    preds_valid=model.predict(features_valid)
+    return preds_train,preds_valid
+
+
+def fit_predict(dataset,modelname):
     features,labels=[],[]
     for data in dataset:
         feature=[data['height'],data['weight'],data['bust size'],data['age'],data['size']]
@@ -115,16 +123,16 @@ def fit_predict(dataset):
         labels.append(data['fit'])
 
     features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/10,random_state=1,shuffle=True)
-    model=LogisticRegression(C=1000,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=200)
-    model.fit(features_train,labels_train)
 
-    preds_train=model.predict(features_train)
+    if modelname=="LogisticRegression":
+        preds_train,preds_valid=LR(features_train,features_valid,labels_train)
+
+
     print('-----------------------------------------')
     print('On Train Set')
     print('-----------------------------------------')
     classification_statics(preds_train,labels_train)
 
-    preds_valid=model.predict(features_valid)
     print('-----------------------------------------')
     print('On Validation Set')
     print('-----------------------------------------')
@@ -174,7 +182,7 @@ if __name__ == "__main__":
     a=predictRatingWithLinear(dataset)
     
 #-------------------------fit prediction-----------------------------------------
-    fit_predict(dataset)
+    fit_predict(dataset,"LogisticRegression")
 
 
 
