@@ -4,6 +4,9 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 import numpy
@@ -112,6 +115,26 @@ def LR(features_train,features_valid,labels_train):
     preds_valid=model.predict(features_valid)
     return preds_train,preds_valid
 
+def SVM(features_train,features_valid,labels_train):
+    model=SVC(C=1,random_state=1,gamma='auto',max_iter=200)
+    model.fit(features_train,labels_train)
+    preds_train=model.predict(features_train)
+    preds_valid=model.predict(features_valid)
+    return preds_train,preds_valid
+
+def RandomForest(features_train,features_valid,labels_train):
+    model=RandomForestClassifier(n_estimators=100, max_depth=2,random_state=1)
+    model.fit(features_train,labels_train)
+    preds_train=model.predict(features_train)
+    preds_valid=model.predict(features_valid)
+    return preds_train,preds_valid
+
+def GradientBoosting(features_train,features_valid,labels_train):
+    model=GradientBoostingClassifier(random_state=1)
+    model.fit(features_train,labels_train)
+    preds_train=model.predict(features_train)
+    preds_valid=model.predict(features_valid)
+    return preds_train,preds_valid
 
 def fit_predict(dataset,modelname):
     features,labels=[],[]
@@ -127,6 +150,14 @@ def fit_predict(dataset,modelname):
     if modelname=="LogisticRegression":
         preds_train,preds_valid=LR(features_train,features_valid,labels_train)
 
+    elif modelname=="SVM":
+        preds_train,preds_valid=SVM(features_train,features_valid,labels_train)
+
+    elif modelname=="RandomForest":
+        preds_train, preds_valid=RandomForest(features_train, features_valid, labels_train)
+
+    elif modelname=='GradientBoosting':
+        preds_train, preds_valid=GradientBoosting(features_train, features_valid, labels_train)
 
     print('-----------------------------------------')
     print('On Train Set')
@@ -182,7 +213,25 @@ if __name__ == "__main__":
     a=predictRatingWithLinear(dataset)
     
 #-------------------------fit prediction-----------------------------------------
+    print('-----------------------------------------')
+    print('Using LR')
+    print('-----------------------------------------')
     fit_predict(dataset,"LogisticRegression")
+
+    print('-----------------------------------------')
+    print('Using SVM')
+    print('-----------------------------------------')
+    fit_predict(dataset,"SVM");
+
+    print('-----------------------------------------')
+    print('Using Random Forest')
+    print('-----------------------------------------')
+    fit_predict(dataset,"RandomForest");
+
+    print('-----------------------------------------')
+    print('Using Gradient Boosting')
+    print('-----------------------------------------')
+    fit_predict(dataset,"GradientBoosting");
 
 
 
