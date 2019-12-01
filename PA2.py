@@ -1,13 +1,17 @@
 import json
 import gzip
+import numpy
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
-import numpy
 from sklearn import linear_model
+import torch
+from torch import nn
+import torch.optim as optim
 
 
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
@@ -50,35 +54,138 @@ def plot_dataset_statistics(dataset):
 ## use to record features used in linear regression
 def feature(datum):
     feat=[1,int(datum['whetherFit'])]
-    return feat 
+    return feat
+
+def MSE(preds,labels):
+    differences=[(x-y)**2 for (x,y) in zip(preds,labels)]
+    MSE=sum(differences)/len(differences)
+    return MSE
 
 
        
 ## predict rating using linear regression
-def predictRatingWithLinear(dataset):
-        y=[int(d['rating']) for d in dataset]
+def Linear_Regression(dataset):
+        labels=[int(d['rating']) for d in dataset]
         X=[feature(d) for d in dataset]
-        N3=len(X)
+        X_train,X_valid,labels_train,labels_valid=train_test_split(X,labels,test_size=1/5,random_state=1)
+        model=LinearRegression()
+        model.fit(X_train,labels_train)
         
-        X_train=X[:(N3//11)*10]
-        X_valid=X[(N3//11)*10:]
-        y_train=y[:(N3//11)*10]
-        y_valid=y[(N3//11)*10:]
-        
-        theta,residuals,rank,s=numpy.linalg.lstsq(X_train,y_train)
-        
-        #mse
-        predict=[]
-        rows=len(X_train)    
-        cols=len(X_train[0])
-        for i in range(rows):
-            row_result=theta[0]+theta[1]*X_train[i][1]
-            predict.append(row_result)
+        preds_train=model.predict(X_train)
+        preds_valid=model.predict(X_valid)
+        MSE_train=MSE(preds_train,labels_train)
+        MSE_valid=MSE(preds_valid,labels_valid)
+        print("On train set, MSE = " + str(MSE_train)+", On valid set, MSE = " + str(MSE_valid))
             
-        differences=[(x-y)**2 for (x,y) in zip(predict,y_train)]
-        MSE=sum(differences)/len(differences)
-        print(str(MSE))
-        return MSE
+        return MSE_valid
+
+def MSE_loss(preds,labels):
+    return ((preds-labels)**2).mean()
+
+class LatentFactorModel(nn.Module):
+    def __init__(self,num_users,num_items,K,alpha):
+        super(LatentFactorModel,self).__init__()
+        self.alpha=nn.Parameter(torch.tensor([alpha],dtype=torch.float))
+        self.userBias=nn.Parameter(torch.zeros(num_users,1))
+        self.itemBias=nn.Parameter(torch.zeros(1,num_items))
+        self.gamma_user=nn.Parameter(torch.zeros(num_users,K))
+        self.gamma_item=nn.Parameter(torch.zeros(K,num_items))
+        self.fit_layer=nn.Linear(3,1)
+    
+    def forward(self,users,items,fit_info):
+        # rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+(self.gamma_user[users,:]*torch.transpose(self.gamma_item[:,items],0,1)).sum()
+        rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+self.fit_layer(fit_info).squeeze(1)
+        # print(self.fit_layer(fit_info).shape)
+        return rating_preds
+
+class DenseNet(nn.Module):
+    def __init__(self,num_users,num_items,K,num_Hidden):
+        super(DenseNet,self).__init__()
+        self.gamma_users=nn.Parameter(torch.randn(num_users,K))
+        self.gamma_items=nn.Parameter(torch.randn(num_items,K))
+        self.layer1=nn.Linear(2*K,num_Hidden)
+        self.layer1_activate=nn.ReLU()
+        self.layer2=nn.Linear(num_Hidden,1)
+    
+    def forward(self,users,items):
+        users_vector=self.gamma_users[users,:]
+        items_vector=self.gamma_items[items,:]
+        vector=torch.cat([users_vector,items_vector],1)
+        activated_vector=self.layer1_activate(self.layer1(vector))
+        # activated_vector=self.layer1(vector)
+        return self.layer2(activated_vector).squeeze(1)
+        
+
+def LFM_prediction(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,num_users,num_items):
+    alpha=sum(rating_labels_train)/len(rating_labels_train)
+
+    model=LatentFactorModel(num_users,num_items,20,alpha)
+    # model=DenseNet(num_users,num_items,4,25)
+    loss_func=MSE_loss
+    learning_rate=1e-1
+    optimizer=optim.SGD(model.parameters(),lr=learning_rate,momentum=0.8,weight_decay=5e-4)
+    # optimizer=optim.Adam(model.parameters(),lr=learning_rate,weight_decay=5e-3)
+
+    train_epochs=20000
+    for epoch in range(train_epochs):
+        # print(float(model.alpha))
+        optimizer.zero_grad()
+        rating_preds_train=model(rating_dataset_train[:,0],rating_dataset_train[:,1],rating_dataset_train[:,2:].float())
+        loss_train=loss_func(rating_preds_train,rating_labels_train)
+        loss_train.backward()
+
+        optimizer.step()
+
+        rating_preds_valid=model(rating_dataset_valid[:,0],rating_dataset_valid[:,1],rating_dataset_valid[:,2:].float())
+        loss_valid=loss_func(rating_preds_valid,rating_labels_valid)
+        if epoch<5 or epoch%100==0:
+            print("Epoch: %d, train loss is: %f, validation loss is: %f" %(epoch,float(loss_train),float(loss_valid)))
+    return loss_valid
+
+        
+
+
+
+def rating_prediction(dataset,modelname):
+    user_set=set()
+    item_set=set()
+    for data in dataset:
+        user_set.add(data['user_id'])
+        item_set.add(data['item_id'])
+    users=list(user_set)
+    items=list(item_set)
+    userIndex_dic={}
+    itemIndex_dic={}
+    cnt=0
+    for user in users:
+        userIndex_dic[user]=cnt
+        cnt+=1
+    cnt=0
+    for item in items:
+        itemIndex_dic[item]=cnt
+        cnt+=1
+
+    rating_dataset=[]
+    rating_labels=[]
+    fit_dic={'fit':[1,0,0],'large':[0,1,0],'small':[0,0,1]}
+    for data in dataset:
+        rating_dataset.append([userIndex_dic[data['user_id']],itemIndex_dic[data['item_id']]]+fit_dic[data['fit']])
+        rating_labels.append(data['rating'])
+        
+    
+    rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid=train_test_split(rating_dataset,rating_labels,test_size=1/5)
+    rating_dataset_train=torch.tensor(rating_dataset_train,dtype=torch.long)
+    rating_dataset_valid=torch.tensor(rating_dataset_valid,dtype=torch.long)
+    rating_labels_train=torch.tensor(rating_labels_train,dtype=torch.float32)
+    rating_labels_valid=torch.tensor(rating_labels_valid,dtype=torch.float32)
+    
+    MSE=Linear_Regression(dataset)
+    if modelname=="LinearRegression":
+        MSE=Linear_Regression(dataset)
+    elif modelname=='LatentFactorModel':
+        MSE=LFM_prediction(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,len(users),len(items))
+    
+    print("MSE of "+modelname+" on validation set is: %f" %MSE)
     
 
 def bust_size_convertion(bust_size):
@@ -105,7 +212,7 @@ def classification_statics(preds,labels):
     print('\n-----------------------------------------')
     print(metrics.classification_report(labels,preds,digits=3))
 
-def LR(features_train,features_valid,labels_train):
+def Logistic_Regression(features_train,features_valid,labels_train):
     model=LogisticRegression(C=1000,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=200)
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
@@ -113,7 +220,7 @@ def LR(features_train,features_valid,labels_train):
     return preds_train,preds_valid
 
 
-def fit_predict(dataset,modelname):
+def fit_prediction(dataset,modelname):
     features,labels=[],[]
     for data in dataset:
         feature=[data['height'],data['weight'],data['bust size'],data['age'],data['size']]
@@ -122,10 +229,10 @@ def fit_predict(dataset,modelname):
         features.append(feature)
         labels.append(data['fit'])
 
-    features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/10,random_state=1,shuffle=True)
+    features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/10)
 
     if modelname=="LogisticRegression":
-        preds_train,preds_valid=LR(features_train,features_valid,labels_train)
+        preds_train,preds_valid=Logistic_Regression(features_train,features_valid,labels_train)
 
 
     print('-----------------------------------------')
@@ -166,12 +273,7 @@ if __name__ == "__main__":
             data['body type']=body_type_convertion(data['body type'])
             dataset.append(data)
 
-    user_reviews=defaultdict(list)  #reviews of each user
-    item_reviews=defaultdict(list)  #reviews of each item
 
-    for data in dataset:
-        user_reviews["user_id"].append(data)
-        item_reviews['item_id'].append(data)
 
     print('Read dataset complete')
 
@@ -179,10 +281,10 @@ if __name__ == "__main__":
     #plot_dataset_statistics(dataset)
 
 #-------------------------rating prediction--------------------------------------
-    a=predictRatingWithLinear(dataset)
+    rating_prediction(dataset[:],'LatentFactorModel')
     
 #-------------------------fit prediction-----------------------------------------
-    fit_predict(dataset,"LogisticRegression")
+    # fit_prediction(dataset,"LogisticRegression")
 
 
 
