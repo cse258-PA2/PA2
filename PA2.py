@@ -16,7 +16,6 @@ import torch
 from torch import nn
 import torch.optim as optim
 
-
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
 body_type_convertion_mod='onehot'  #'onehot' or 'integer'
 
@@ -119,7 +118,6 @@ class DenseNet(nn.Module):
         activated_vector=self.layer1_activate(self.layer1(vector))
         # activated_vector=self.layer1(vector)
         return self.layer2(activated_vector).squeeze(1)
-        
 
 def rating_prediction_training(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,num_users,num_items):
     alpha=sum(rating_labels_train)/len(rating_labels_train)
@@ -146,10 +144,6 @@ def rating_prediction_training(rating_dataset_train,rating_dataset_valid,rating_
         if epoch<5 or epoch%100==0:
             print("Epoch: %d, train loss is: %f, validation loss is: %f" %(epoch,float(loss_train),float(loss_valid)))
     return loss_valid
-
-        
-
-
 
 def rating_prediction(dataset,modelname):
     user_set=set()
@@ -190,7 +184,6 @@ def rating_prediction(dataset,modelname):
         MSE=rating_prediction_training(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,len(users),len(items))
     
     print("MSE of "+modelname+" on validation set is: %f" %MSE)
-    
 
 def bust_size_convertion(bust_size):
     lower_size=int(bust_size[:2])
@@ -217,14 +210,15 @@ def classification_statics(preds,labels):
     print(metrics.classification_report(labels,preds,digits=3))
 
 def Logistic_Regression(features_train,features_valid,labels_train):
-    model=LogisticRegression(C=1000,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=200)
+    model=LogisticRegression(C=0.1,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=2000,
+                             class_weight={'fit':0.3, 'small':1, 'large':1.2})
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
     return preds_train,preds_valid
 
 def SVM(features_train,features_valid,labels_train):
-    model=SVC(C=1,random_state=1,gamma='auto',max_iter=200)
+    model=SVC(kernel='linear',C=0.1,random_state=1,gamma='auto',max_iter=2000, class_weight={'fit':5, 'small':8, 'large':9})
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
@@ -253,7 +247,7 @@ def fit_prediction(dataset,modelname):
         features.append(feature)
         labels.append(data['fit'])
 
-    features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/10)
+    features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=0.2)
 
     if modelname=="LogisticRegression":
         preds_train,preds_valid=Logistic_Regression(features_train,features_valid,labels_train)
@@ -276,7 +270,6 @@ def fit_prediction(dataset,modelname):
     print('On Validation Set')
     print('-----------------------------------------')
     classification_statics(preds_valid,labels_valid)
-    
 
 
 #Possible tasks: 1. predict whether fit  2. predict rating 3. whether A would rent B
@@ -309,14 +302,14 @@ if __name__ == "__main__":
     #plot_dataset_statistics(dataset)
 
 #-------------------------rating prediction--------------------------------------
-    rating_prediction(dataset,'LinearRegression')
-    rating_prediction(dataset,'LatentFactorModel')
+    # rating_prediction(dataset,'LinearRegression')
+    # rating_prediction(dataset,'LatentFactorModel')
     
 #-------------------------fit prediction-----------------------------------------
     # print('-----------------------------------------')
     # print('Using LR')
     # print('-----------------------------------------')
-    # fit_prediction(dataset,"LogisticRegression")
+    fit_prediction(dataset,"LogisticRegression")
 
     # print('-----------------------------------------')
     # print('Using SVM')
