@@ -55,9 +55,13 @@ def plot_dataset_statistics(dataset):
         plt.savefig(figs_path+head+"_statistics.png",dpi=300)
 
 ## use to record features used in linear regression
-def feature(datum):
-    feat=[1,int(datum['whetherFit'])]
-    return feat
+def feature(sample,mode):
+    if mode=='number':
+        dic={'fit':-1,'large':0,'small':1}
+        return [1,dic[sample['fit']]]
+    elif mode=='onehot':
+        dic={'fit':[1,0,0],'large':[0,1,0],'small':[0,0,1]}
+        return [1]+dic[sample['fit']]
 
 def MSE(preds,labels):
     differences=[(x-y)**2 for (x,y) in zip(preds,labels)]
@@ -65,11 +69,10 @@ def MSE(preds,labels):
     return MSE
 
 
-       
 ## predict rating using linear regression
 def Linear_Regression(dataset):
-        labels=[int(d['rating']) for d in dataset]
-        X=[feature(d) for d in dataset]
+        labels=[d['rating'] for d in dataset]
+        X=[feature(d,'onehot') for d in dataset]
         X_train,X_valid,labels_train,labels_valid=train_test_split(X,labels,test_size=1/5,random_state=1)
         model=LinearRegression()
         model.fit(X_train,labels_train)
@@ -96,9 +99,8 @@ class LatentFactorModel(nn.Module):
         self.fit_layer=nn.Linear(3,1)
     
     def forward(self,users,items,fit_info):
-        # rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+(self.gamma_user[users,:]*torch.transpose(self.gamma_item[:,items],0,1)).sum()
-        rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+self.fit_layer(fit_info).squeeze(1)
-        # print(self.fit_layer(fit_info).shape)
+        rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+(self.gamma_user[users,:]*torch.transpose(self.gamma_item[:,items],0,1)).sum()+self.fit_layer(fit_info).squeeze(1)
+        # rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+self.fit_layer(fit_info).squeeze(1)
         return rating_preds
 
 class DenseNet(nn.Module):
@@ -119,19 +121,19 @@ class DenseNet(nn.Module):
         return self.layer2(activated_vector).squeeze(1)
         
 
-def LFM_prediction(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,num_users,num_items):
+def rating_prediction_training(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,num_users,num_items):
     alpha=sum(rating_labels_train)/len(rating_labels_train)
 
-    model=LatentFactorModel(num_users,num_items,20,alpha)
+    model=LatentFactorModel(num_users,num_items,5,alpha)
     # model=DenseNet(num_users,num_items,4,25)
     loss_func=MSE_loss
-    learning_rate=1e-1
+    learning_rate=5e-2
     optimizer=optim.SGD(model.parameters(),lr=learning_rate,momentum=0.8,weight_decay=5e-4)
     # optimizer=optim.Adam(model.parameters(),lr=learning_rate,weight_decay=5e-3)
 
     train_epochs=20000
     for epoch in range(train_epochs):
-        # print(float(model.alpha))
+
         optimizer.zero_grad()
         rating_preds_train=model(rating_dataset_train[:,0],rating_dataset_train[:,1],rating_dataset_train[:,2:].float())
         loss_train=loss_func(rating_preds_train,rating_labels_train)
@@ -182,11 +184,10 @@ def rating_prediction(dataset,modelname):
     rating_labels_train=torch.tensor(rating_labels_train,dtype=torch.float32)
     rating_labels_valid=torch.tensor(rating_labels_valid,dtype=torch.float32)
     
-    MSE=Linear_Regression(dataset)
     if modelname=="LinearRegression":
         MSE=Linear_Regression(dataset)
     elif modelname=='LatentFactorModel':
-        MSE=LFM_prediction(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,len(users),len(items))
+        MSE=rating_prediction_training(rating_dataset_train,rating_dataset_valid,rating_labels_train,rating_labels_valid,len(users),len(items))
     
     print("MSE of "+modelname+" on validation set is: %f" %MSE)
     
@@ -286,11 +287,7 @@ if __name__ == "__main__":
         for line in f:
             data=json.loads(line)
             if data['rating']==None or len(data)!=15:  #If it doesn't have all attributes or rating is None, abort thus sample  
-                continue
-            if data['fit']=='fit':
-                data['whetherFit']=1
-            else:
-                data['whetherFit']=0         
+                continue        
             if 'perfect' in data['review_summary'] or 'glamourous' in data['review_summary'] or 'love' in data['review_summary'] or 'cute' in data['review_summary'] or 'compliments' in data['review_summary'] or 'confident' in data['review_summary'] or 'awesome' in data['review_summary'] or 'comfortable' in data['review_summary'] or 'fashion' in data['review_summary'] or 'trendy' in data['review_summary'] or 'great' in data['review_summary'] or 'best' in data['review_summary'] or 'gorgeous' in data['review_summary'] or 'beautiful' in data['review_summary'] or 'recommend' in data['review_summary'] or 'fit' in data['review_summary'] or 'fun' in data['review_summary']:
                 data['good_review']=1
             else:
@@ -299,7 +296,7 @@ if __name__ == "__main__":
             data['rating']=int(data['rating'])
             data['weight']=int(data['weight'][:-3])
             height_tmp=data['height'].strip('\"').split('\'')
-            data['height']=float(height_tmp[0])+0.1*float(height_tmp[1])
+            data['height']=0.3*float(height_tmp[0])+2.54*float(height_tmp[1])/100
             data['bust size']=bust_size_convertion(data['bust size'])
             data['body type']=body_type_convertion(data['body type'])
             dataset.append(data)
@@ -312,28 +309,29 @@ if __name__ == "__main__":
     #plot_dataset_statistics(dataset)
 
 #-------------------------rating prediction--------------------------------------
-    # rating_prediction(dataset[:],'LatentFactorModel')
+    rating_prediction(dataset,'LinearRegression')
+    rating_prediction(dataset,'LatentFactorModel')
     
 #-------------------------fit prediction-----------------------------------------
-    print('-----------------------------------------')
-    print('Using LR')
-    print('-----------------------------------------')
-    fit_prediction(dataset,"LogisticRegression")
+    # print('-----------------------------------------')
+    # print('Using LR')
+    # print('-----------------------------------------')
+    # fit_prediction(dataset,"LogisticRegression")
 
-    print('-----------------------------------------')
-    print('Using SVM')
-    print('-----------------------------------------')
-    fit_prediction(dataset,"SVM")
+    # print('-----------------------------------------')
+    # print('Using SVM')
+    # print('-----------------------------------------')
+    # fit_prediction(dataset,"SVM")
 
-    print('-----------------------------------------')
-    print('Using Random Forest')
-    print('-----------------------------------------')
-    fit_prediction(dataset,"RandomForest")
+    # print('-----------------------------------------')
+    # print('Using Random Forest')
+    # print('-----------------------------------------')
+    # fit_prediction(dataset,"RandomForest")
 
-    print('-----------------------------------------')
-    print('Using Gradient Boosting')
-    print('-----------------------------------------')
-    fit_prediction(dataset,"GradientBoosting")
+    # print('-----------------------------------------')
+    # print('Using Gradient Boosting')
+    # print('-----------------------------------------')
+    # fit_prediction(dataset,"GradientBoosting")
 
 
 
