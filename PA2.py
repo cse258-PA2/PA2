@@ -264,14 +264,14 @@ def SVM(features_train,features_valid,labels_train):
     return preds_train,preds_valid
 
 def RandomForest(features_train,features_valid,labels_train):
-    model=RandomForestClassifier(n_estimators=100, max_depth=2,random_state=1)
+    model=RandomForestClassifier(n_estimators=500, max_depth=3,random_state=1)
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
     return preds_train,preds_valid
 
 def GradientBoosting(features_train,features_valid,labels_train):
-    model=GradientBoostingClassifier(random_state=1)
+    model=GradientBoostingClassifier(n_estimators=500,random_state=1)
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
@@ -285,6 +285,9 @@ def fit_prediction(dataset,modelname):
         feature+=body_type
         features.append(feature)
         labels.append(data['fit'])
+
+    # take 0.6 of dataset for actual use
+    features,_,labels,_=train_test_split(features,labels,train_size=1/2,random_state=1)
 
     features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/5,random_state=1)
 
@@ -357,7 +360,7 @@ if __name__ == "__main__":
     # print('Using LR')
     # print('-----------------------------------------')
     # fit_prediction(dataset,"LogisticRegression")
-
+    #
     # print('-----------------------------------------')
     # print('Using SVM')
     # print('-----------------------------------------')
@@ -367,7 +370,7 @@ if __name__ == "__main__":
     # print('Using Random Forest')
     # print('-----------------------------------------')
     # fit_prediction(dataset,"RandomForest")
-
+    #
     # print('-----------------------------------------')
     # print('Using Gradient Boosting')
     # print('-----------------------------------------')
