@@ -11,6 +11,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 from sklearn import metrics
 from sklearn import linear_model
 import torch
@@ -254,6 +255,13 @@ def classification_statics(preds,labels):
     print('\n-----------------------------------------')
     print(metrics.classification_report(labels,preds,digits=3))
 
+def PCA_Reduction(features_train,features_valid,components):
+    pca = PCA(n_components=components)
+    pca.fit(features_train)
+    features_train = pca.transform(features_train)
+    features_valid = pca.transform(features_valid)
+    return features_train,features_valid
+
 def Logistic_Regression(features_train,features_valid,labels_train):
     model=LogisticRegression(C=0.1,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=2000,class_weight={'fit':0.3, 'small':1, 'large':1.2})
     model.fit(features_train,labels_train)
@@ -269,14 +277,14 @@ def SVM(features_train,features_valid,labels_train):
     return preds_train,preds_valid
 
 def RandomForest(features_train,features_valid,labels_train):
-    model=RandomForestClassifier(n_estimators=100, max_depth=2,random_state=1)
+    model=RandomForestClassifier(n_estimators=500, max_depth=3,random_state=1)
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
     return preds_train,preds_valid
 
 def GradientBoosting(features_train,features_valid,labels_train):
-    model=GradientBoostingClassifier(random_state=1)
+    model=GradientBoostingClassifier(n_estimators=500,random_state=1)
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
@@ -296,7 +304,13 @@ def fit_prediction(dataset,modelname):
         features.append(feature)
         labels.append(data['fit'])
 
+    # take 0.6 of dataset for actual use
+    features,_,labels,_=train_test_split(features,labels,train_size=1/2,random_state=1)
+
     features_train,features_valid,labels_train,labels_valid=train_test_split(features,labels,test_size=1/5,random_state=1)
+
+    # perform pca
+    features_train,features_valid = PCA_Reduction(features_train, features_valid, 8)
 
     if modelname=="LogisticRegression":
         preds_train,preds_valid=Logistic_Regression(features_train,features_valid,labels_train)
@@ -377,7 +391,7 @@ if __name__ == "__main__":
     # print('Using Random Forest')
     # print('-----------------------------------------')
     # fit_prediction(dataset,"RandomForest")
-
+    #
     # print('-----------------------------------------')
     # print('Using Gradient Boosting')
     # print('-----------------------------------------')
