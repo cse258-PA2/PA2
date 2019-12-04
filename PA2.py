@@ -19,7 +19,8 @@ import torch.optim as optim
 
 figs_path="/mnt/c/Users/AlbertPi/Desktop/"
 body_type_convertion_mod='onehot'  #'onehot' or 'integer'
-wordBag_size=1000
+wordBag_size=00
+wordBag_beginIndex=0
 
 #plot statistics of dataset
 def plot_dataset_statistics(dataset):
@@ -38,13 +39,17 @@ def plot_dataset_statistics(dataset):
     for data in dataset:
         for head in data:
             if head!='user_id' and head!='item_id' and head!='review_text' and head!='review_summary' and head!='review_date':
-                statistics_dic[head][data[head]]+=1      
+                statistics_dic[head][data[head]]+=1
+          
 
     for head in statistics_dic:
         fig, ax = plt.subplots(1, 1)
         plt.figure(figsize=(16,9))
+        # tmp_lst=list(zip(statistics_dic[head].values(),statistics_dic[head].keys()))
         tmp_lst=list(zip(statistics_dic[head].keys(),statistics_dic[head].values()))
+        # tmp_lst.sort(reverse=True)
         tmp_lst.sort()
+        if head=='category': tmp_lst=tmp_lst[:10]
         values,keys=[item[1] for item in tmp_lst],[item[0] for item in tmp_lst]
         fig=plt.bar(range(len(values)),values)
         stride=1
@@ -53,7 +58,7 @@ def plot_dataset_statistics(dataset):
         plt.xlabel(head)
         plt.ylabel("Number of samples")
         # plt.title(head+" statistics")
-        plt.savefig(figs_path+head+"_statistics.png",dpi=300)
+        plt.savefig(figs_path+head+"_statistics.pdf",dpi=300)
 
 def bust_size_convertion(bust_size):
     lower_size=int(bust_size[:2])
@@ -143,6 +148,7 @@ class LatentFactorModel(nn.Module):
         self.fit_layer=nn.Linear(3+wordBag_size,1)
     
     def forward(self,users,items,feature):
+        # rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+(self.gamma_user[users,:]*torch.transpose(self.gamma_item[:,items],0,1)).sum()
         rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+(self.gamma_user[users,:]*torch.transpose(self.gamma_item[:,items],0,1)).sum()+self.fit_layer(feature).squeeze(1)
         # rating_preds=self.alpha+self.userBias[users,0]+self.itemBias[0,items]+self.fit_layer(fit_info).squeeze(1)
         return rating_preds
@@ -160,7 +166,6 @@ class DenseNet(nn.Module):
         users_vector=self.gamma_users[users,:]
         items_vector=self.gamma_items[items,:]
         vector=torch.cat([users_vector,items_vector,fit_info],1)
-        # vector=fit_info
         activated_vector=self.activation1(self.fullyConnect1(vector))
         # activated_vector=self.fullyConnect1(vector)
         return self.fullyConnect2(activated_vector).squeeze(1)
@@ -203,13 +208,14 @@ def rating_prediction_training(rating_features_train,rating_features_valid,ratin
 def rating_prediction(dataset,modelname):
 
     dataset_train,dataset_valid=train_test_split(dataset,test_size=1/5,random_state=1)
-    commonWordsID=commonWords_generate(dataset_train,0,0+wordBag_size)
+    commonWordsID=commonWords_generate(dataset_train,wordBag_beginIndex,wordBag_beginIndex+wordBag_size)
 
     user_set,item_set=set(),set()
     for data in dataset:
         user_set.add(data['user_id'])
         item_set.add(data['item_id'])
     users,items=list(user_set),list(item_set)
+    print(len(users),len(items),len(dataset))
     userIndex_dic,itemIndex_dic={},{}
     userIndex_dic=dict(zip(users,range(len(users))))
     itemIndex_dic=dict(zip(items,range(len(items))))
@@ -249,15 +255,14 @@ def classification_statics(preds,labels):
     print(metrics.classification_report(labels,preds,digits=3))
 
 def Logistic_Regression(features_train,features_valid,labels_train):
-    model=LogisticRegression(C=0.1,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=2000,
-                             class_weight={'fit':0.3, 'small':1, 'large':1.2})
+    model=LogisticRegression(C=0.1,random_state=1,solver='lbfgs',multi_class='multinomial',n_jobs=-1,max_iter=2000,class_weight={'fit':0.3, 'small':1, 'large':1.2})
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
     return preds_train,preds_valid
 
 def SVM(features_train,features_valid,labels_train):
-    model=SVC(kernel='sigmoid',C=0.1,random_state=1,gamma='auto',max_iter=2000)
+    model=SVC(kernel='sigmoid',C=0.1,random_state=1,gamma='auto',max_iter=2000,class_weight={'fit':0.3, 'small':3, 'large':3.2})
     model.fit(features_train,labels_train)
     preds_train=model.predict(features_train)
     preds_valid=model.predict(features_valid)
@@ -278,11 +283,16 @@ def GradientBoosting(features_train,features_valid,labels_train):
     return preds_train,preds_valid
 
 def fit_prediction(dataset,modelname):
+
+    dataset_train,dataset_valid=train_test_split(dataset,test_size=1/5,random_state=1)
+    commonWordsID=commonWords_generate(dataset_train,wordBag_beginIndex,wordBag_beginIndex+wordBag_size)
+
     features,labels=[],[]
     for data in dataset:
         feature=[data['height'],data['weight'],data['bust size'],data['age'],data['size']]
         body_type=[int(i) for i in list(data['body type'])]
         feature+=body_type
+        feature+=freqVec_generate(data['review_text'],commonWordsID)
         features.append(feature)
         labels.append(data['fit'])
 
@@ -344,10 +354,10 @@ if __name__ == "__main__":
     # category_size_distribution(dataset)
 
 #-------------------------plot statistics of dataset-----------------------------
-    #plot_dataset_statistics(dataset)
+    # plot_dataset_statistics(dataset)
 
 #-------------------------rating prediction--------------------------------------
-    rating_prediction(dataset,'NaiveAverage')
+    # rating_prediction(dataset,'NaiveAverage')
     # rating_prediction(dataset,'LinearRegression')
     # rating_prediction(dataset,'LatentFactorModel')
     # rating_prediction(dataset,'DenseNet')
@@ -358,10 +368,10 @@ if __name__ == "__main__":
     # print('-----------------------------------------')
     # fit_prediction(dataset,"LogisticRegression")
 
-    # print('-----------------------------------------')
-    # print('Using SVM')
-    # print('-----------------------------------------')
-    # fit_prediction(dataset,"SVM")
+    print('-----------------------------------------')
+    print('Using SVM')
+    print('-----------------------------------------')
+    fit_prediction(dataset,"SVM")
 
     # print('-----------------------------------------')
     # print('Using Random Forest')
